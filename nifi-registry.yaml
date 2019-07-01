@@ -1,0 +1,68 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: registry-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nifi-registry
+spec:
+  ports:
+  - port: 18080
+  selector:
+    app: registry
+  type: NodePort
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: registry
+spec:
+  selector:
+    matchLabels:
+      app: registry
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+      - image: apache/nifi-registry:latest
+        name: registry
+        ports:
+        - containerPort: 18080
+          name: http
+        - containerPort: 18443
+          name: reg
+        volumeMounts:
+        - name: registry-persistent-storage
+          mountPath: /opt/nifi-registry/nifi-registry-0.4.0
+      volumes:
+      - name: registry-persistent-storage
+        persistentVolumeClaim:
+          claimName: registry-pv-claim
